@@ -1,6 +1,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
@@ -45,10 +47,19 @@ namespace RVTR.Booking.WebApi.Controllers
     public async Task<IActionResult> Delete(int id)
     {
       _logger.LogDebug("Deleting a booking by its ID...");
-      await _unitOfWork.Booking.DeleteAsync(id);
-      await _unitOfWork.CommitAsync();
-      _logger.LogInformation($"Deleted the booking with ID ${id}.");
-      return NoContent();
+      var booking = await _unitOfWork.Booking.SelectAsync(id);
+      if (booking == null)
+      {
+        _logger.LogInformation($"Could not find booking to delete @ id = {id}.");
+        return NotFound(id);
+      }
+      else
+      {
+        await _unitOfWork.Booking.DeleteAsync(id);
+        await _unitOfWork.CommitAsync();
+        _logger.LogInformation($"Succesfully deleted booking @ id = {id}.");
+        return NoContent();
+      }
     }
 
     /// <summary>
@@ -67,9 +78,9 @@ namespace RVTR.Booking.WebApi.Controllers
       if (checkIn != null && checkOut != null)
       {
         // Date range sanity check
-        if (checkIn > checkOut)
+        if (checkIn > checkOut || checkIn == checkOut)
         {
-          _logger.LogInformation($"Failed to get bookings - checkIn can't occur after checkOut..");
+          _logger.LogInformation($"Check In Date cannot be later than or equal to Check Out Date.");
           return BadRequest();
         }
         _logger.LogInformation($"Retrieved bookings within the given date range ${checkIn} - ${checkOut}.");
@@ -78,8 +89,10 @@ namespace RVTR.Booking.WebApi.Controllers
       }
       else if (checkIn == null && checkOut == null)
       {
-        _logger.LogInformation($"Retrieved all bookings.");
-        return Ok(await _unitOfWork.Booking.SelectAsync());
+        _logger.LogInformation($"Check In Date and Check Out Date cannot be null.");
+        return BadRequest();//// Before my edit, this line read: return Ok(await _unitOfWork.Booking.SelectAsync());
+        // Changed the above line because having client side validation that requies check in and Checkout dates would
+        // mean that empty checkIn and checkout dates is a bad request.
       }
       else
       {
@@ -102,12 +115,12 @@ namespace RVTR.Booking.WebApi.Controllers
       var booking = await _unitOfWork.Booking.SelectAsync(id);
       if (booking == null)
       {
-        _logger.LogWarning($"Booking with ID {id} does not exist.");
+        _logger.LogInformation($"Could not find booking to get @ id = {id}.");
         return NotFound(id);
       }
       else
       {
-        _logger.LogInformation($"Retrieved the booking with ID {id}.");
+        _logger.LogInformation($"Succesfully found booking to get @ id = {id}.");
         return Ok(booking);
       }
     }
@@ -119,11 +132,21 @@ namespace RVTR.Booking.WebApi.Controllers
     /// <returns></returns>
     [HttpGet("Account/{id}")]
     [ProducesResponseType(typeof(IEnumerable<BookingModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByAccountId(int id)
     {
       _logger.LogDebug("Getting a booking by account ID..");
       var bookings = await _unitOfWork.Booking.GetByAccountId(id);
-      return Ok(bookings);
+      if (bookings == null)
+      {
+        _logger.LogInformation($"Could not find bookings to get @ account id = {id}.");
+        return NotFound(id);
+      }
+      else
+      {
+        _logger.LogInformation($"Succesfully found bookings to get @ account id = {id}.");
+        return Ok(bookings);
+      }
     }
 
     /// <summary>
@@ -133,17 +156,28 @@ namespace RVTR.Booking.WebApi.Controllers
     /// <returns></returns>
     [HttpPost]
     [ProducesResponseType(typeof(BookingModel), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Post(BookingModel booking)
     {
       _logger.LogDebug("Adding a booking...");
-      await _unitOfWork.Booking.InsertAsync(booking);
-      await _unitOfWork.CommitAsync();
-      _logger.LogInformation($"Successfully added the booking {booking}.");
-      return CreatedAtAction(
-        actionName: nameof(Get),
-        routeValues: new { id = booking.Id },
-        value: booking
-      );
+      var validationResults = booking.Validate(new ValidationContext(booking));
+      if (validationResults != null || validationResults.Count() > 0)
+      {
+        _logger.LogInformation($"Invalid booking '{booking}'.");
+        return BadRequest();
+      }
+      else
+      {
+        _logger.LogInformation($"Successfully added the booking '{booking}'.");
+        await _unitOfWork.Booking.InsertAsync(booking);
+        await _unitOfWork.CommitAsync();
+
+        return CreatedAtAction(
+          actionName: nameof(Get),
+          routeValues: new { id = booking.Id },
+          value: booking
+        );
+      }
     }
 
     /// <summary>
@@ -153,13 +187,23 @@ namespace RVTR.Booking.WebApi.Controllers
     /// <returns></returns>
     [HttpPut]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Put(BookingModel booking)
     {
       _logger.LogDebug("Updating a booking...");
-      _unitOfWork.Booking.Update(booking);
-      await _unitOfWork.CommitAsync();
-      _logger.LogDebug($"Successfully updated the booking ${booking}...");
-      return NoContent();
+      var validationResults = booking.Validate(new ValidationContext(booking));
+      if (validationResults != null || validationResults.Count() > 0)
+      {
+        _logger.LogInformation($"Invalid booking '{booking}'.");
+        return BadRequest();
+      }
+      else
+      {
+        _logger.LogInformation($"Successfully added the booking '{booking}'.");
+        _unitOfWork.Booking.Update(booking);
+        await _unitOfWork.CommitAsync();
+        return NoContent();
+      }
     }
   }
 }
