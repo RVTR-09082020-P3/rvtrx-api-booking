@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: booking
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: booking
@@ -30,7 +30,9 @@ spec:
           ports:
             - containerPort: 80
               name: booking-http
-
+          volumeMounts:
+            - mountPath: /storage
+              name: booking-storage
         - env:
             - name: POSTGRES_PASSWORD
               value: BookingData@2020
@@ -40,6 +42,8 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres-tcp
-
+      volumes:
+        - name: booking-storage
+          emptyDir: {}
       imagePullSecrets:
         - name: github

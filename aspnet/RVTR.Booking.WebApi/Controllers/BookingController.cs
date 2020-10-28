@@ -48,6 +48,7 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
+      _logger.LogDebug("Deleting a booking by its ID...");
       var booking = await _unitOfWork.Booking.SelectAsync(id);
       if (booking == null)
       {
@@ -90,6 +91,7 @@ namespace RVTR.Booking.WebApi.Controllers
           _logger.LogInformation($"Check In Date cannot be earlier than Today's Date.");
           return BadRequest();
         }
+
         var bookings = await _unitOfWork.Booking.GetBookingsByDatesAsync((DateTime)checkIn, (DateTime)checkOut);
         return Ok(bookings);
       }
@@ -102,12 +104,12 @@ namespace RVTR.Booking.WebApi.Controllers
       }
       else
       {
+        _logger.LogWarning($"Failed to get bookings - invalid range given..");
         return BadRequest();
       }
     }
 
     /// <summary>
-    ///
     /// Action method that returns a single booking by booking id.
     /// </summary>
     /// <param name="id"></param>
@@ -117,6 +119,7 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id)
     {
+      _logger.LogDebug("Getting a booking by booking ID..");
       var booking = await _unitOfWork.Booking.SelectAsync(id);
       if (booking == null)
       {
@@ -140,6 +143,7 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByAccountId(int id)
     {
+      _logger.LogDebug("Getting a booking by account ID..");
       var bookings = await _unitOfWork.Booking.GetByAccountId(id);
       if (bookings == null)
       {
@@ -163,6 +167,7 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Post(BookingModel booking)
     {
+      _logger.LogDebug("Adding a booking...");
       var validationResults = booking.Validate(new ValidationContext(booking));
       if (validationResults != null || validationResults.Count() > 0)
       {
@@ -193,6 +198,7 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Put(BookingModel booking)
     {
+      _logger.LogDebug("Updating a booking...");
       var validationResults = booking.Validate(new ValidationContext(booking));
       if (validationResults != null || validationResults.Count() > 0)
       {
