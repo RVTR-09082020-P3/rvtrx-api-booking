@@ -44,8 +44,10 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
+      _logger.LogDebug("Deleting a booking by its ID...");
       await _unitOfWork.Booking.DeleteAsync(id);
       await _unitOfWork.CommitAsync();
+      _logger.LogInformation($"Deleted the booking with ID ${id}.");
       return NoContent();
     }
 
@@ -61,29 +63,32 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Get(DateTime? checkIn, DateTime? checkOut)
     {
+      _logger.LogDebug("Getting a booking between dates...");
       if (checkIn != null && checkOut != null)
       {
         // Date range sanity check
         if (checkIn > checkOut)
         {
+          _logger.LogInformation($"Failed to get bookings - checkIn can't occur after checkOut..");
           return BadRequest();
         }
-
+        _logger.LogInformation($"Retrieved bookings within the given date range ${checkIn} - ${checkOut}.");
         var bookings = await _unitOfWork.Booking.GetBookingsByDatesAsync((DateTime)checkIn, (DateTime)checkOut);
         return Ok(bookings);
       }
       else if (checkIn == null && checkOut == null)
       {
+        _logger.LogInformation($"Retrieved all bookings.");
         return Ok(await _unitOfWork.Booking.SelectAsync());
       }
       else
       {
+        _logger.LogWarning($"Failed to get bookings - invalid range given..");
         return BadRequest();
       }
     }
 
     /// <summary>
-    ///
     /// Action method that returns a single booking by booking id.
     /// </summary>
     /// <param name="id"></param>
@@ -93,13 +98,16 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id)
     {
+      _logger.LogDebug("Getting a booking by booking ID..");
       var booking = await _unitOfWork.Booking.SelectAsync(id);
       if (booking == null)
       {
+        _logger.LogWarning($"Booking with ID {id} does not exist.");
         return NotFound(id);
       }
       else
       {
+        _logger.LogInformation($"Retrieved the booking with ID {id}.");
         return Ok(booking);
       }
     }
@@ -113,6 +121,7 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(typeof(IEnumerable<BookingModel>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByAccountId(int id)
     {
+      _logger.LogDebug("Getting a booking by account ID..");
       var bookings = await _unitOfWork.Booking.GetByAccountId(id);
       return Ok(bookings);
     }
@@ -126,9 +135,10 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(typeof(BookingModel), StatusCodes.Status201Created)]
     public async Task<IActionResult> Post(BookingModel booking)
     {
+      _logger.LogDebug("Adding a booking...");
       await _unitOfWork.Booking.InsertAsync(booking);
       await _unitOfWork.CommitAsync();
-
+      _logger.LogInformation($"Successfully added the booking {booking}.");
       return CreatedAtAction(
         actionName: nameof(Get),
         routeValues: new { id = booking.Id },
@@ -145,9 +155,10 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Put(BookingModel booking)
     {
+      _logger.LogDebug("Updating a booking...");
       _unitOfWork.Booking.Update(booking);
       await _unitOfWork.CommitAsync();
-
+      _logger.LogDebug($"Successfully updated the booking ${booking}...");
       return NoContent();
     }
   }
