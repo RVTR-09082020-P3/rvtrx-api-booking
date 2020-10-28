@@ -28,6 +28,24 @@ namespace RVTR.Booking.ObjectModel.Models
     /// </summary>
     /// <param name="validationContext"></param>
     /// <returns></returns>
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) => new List<ValidationResult>();
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+      if (Guests == null)
+      {
+        yield return new ValidationResult("Guests cannot be null.");
+      }
+      if (Rentals == null)
+      {
+        yield return new ValidationResult("Rentals cannot be null.");
+      }
+      if (CheckIn == null)
+      {
+        yield return new ValidationResult("CheckIn cannot be null.");
+      }
+      if (CheckOut == null)
+      {
+        yield return new ValidationResult("Checkout cannot be null.");
+      }
+    }
   }
 }

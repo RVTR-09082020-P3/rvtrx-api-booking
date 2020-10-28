@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using RVTR.Booking.ObjectModel.Interfaces;
 using RVTR.Booking.ObjectModel.Models;
+using System.Diagnostics;
 
 namespace RVTR.Booking.WebApi.Controllers
 {
@@ -73,15 +75,21 @@ namespace RVTR.Booking.WebApi.Controllers
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Get(DateTime? checkIn, DateTime? checkOut)
     {
+      DateTime todaysDate = DateTime.Now.Date;
       if (checkIn != null && checkOut != null)
       {
         // Date range sanity check
-        if (checkIn > checkOut || checkIn == checkOut)
+        if (checkIn >= checkOut)
         {
           _logger.LogInformation($"Check In Date cannot be later than or equal to Check Out Date.");
           return BadRequest();
         }
-
+        // Cannot time travel (yet) sanity check
+        else if (checkIn < todaysDate)
+        {
+          _logger.LogInformation($"Check In Date cannot be earlier than Today's Date.");
+          return BadRequest();
+        }
         var bookings = await _unitOfWork.Booking.GetBookingsByDatesAsync((DateTime)checkIn, (DateTime)checkOut);
         return Ok(bookings);
       }
@@ -159,7 +167,7 @@ namespace RVTR.Booking.WebApi.Controllers
       if (validationResults != null || validationResults.Count() > 0)
       {
         _logger.LogInformation($"Invalid booking '{booking}'.");
-        return BadRequest();
+        return BadRequest(booking);
       }
       else
       {
@@ -189,7 +197,7 @@ namespace RVTR.Booking.WebApi.Controllers
       if (validationResults != null || validationResults.Count() > 0)
       {
         _logger.LogInformation($"Invalid booking '{booking}'.");
-        return BadRequest();
+        return BadRequest(booking);
       }
       else
       {
